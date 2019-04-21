@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block body %}
+
+<h2>Register</h2>
+{% if error %}<p class=error><strong>Error:</strong> {{ error }}{% endif %}
+<form class="register_form" action="{{ url_for('register') }}" method="post">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    <dl>
+        <dt>Email: <input type="text" name="email">
+        <dt>Password: <input type="password" name="password">
+        <dt>First Name: <input type="text" name="first_name">
+        <dt>Last Name: <input type="text" name="last_name">
+	 	<div>
+		 	<input type="checkbox" name="is_realtor">
+		 	<label for="is_realtor">I am a realtor</label>
+		</div>
+		<div>
+		 	<input type="checkbox" name="is_admin">
+		 	<label for="is_admin">I am a site admin</label>
+		</div>
+        <input type="submit" value="Sign Up">
+    </dl>
+</form>
+
+{% endblock %}
