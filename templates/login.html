@@ -7,7 +7,7 @@
 <form action="{{ url_for('login') }}" method="post">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
     <dl>
-        <dt>Username: <input type="text" name="username">
+        <dt>Email: <input type="text" name="email">
         <dt>Password: <input type="password" name="password">
         <br/>
         <input type="submit" value="Login">

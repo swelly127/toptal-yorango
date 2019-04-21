@@ -76,9 +76,9 @@ def register():
             new_user = User(email=email, password=bcrypt.generate_password_hash(password))
             new_user.first_name = request.form['first_name']
             new_user.last_name = request.form['last_name']
-            new_user.is_admin = request.form['is_admin']
-            new_user.is_client = request.form['is_client']
-            new_user.is_realtor = request.form['is_realtor']
+            print(request.form.get('is_admin'), request.form.get('is_realtor'))
+            new_user.is_admin = request.form.get('is_admin') == "true"
+            new_user.is_realtor = request.form.get('is_realtor') == "true"
             new_user.save()
             return redirect(url_for('login'))
         else:
@@ -89,20 +89,18 @@ def register():
 def login():
     error = None
     if request.method == 'POST':
-        try:
-            this_user = User.objects.get(email=request.form['email'])
-            if request.form['email'] != this_user.email:
-                error = 'Invalid email'
-            elif bcrypt.check_password_hash(this_user.password, request.form['password']) == False:
-                error = 'Invalid password'
-            else:
-                session['logged_in'] = True
-                session['this_user'] = {'first_name': this_user.first_name}
-
-                flash('You were logged in')
-                return redirect(url_for('index'))
-        except:
-            flash('User does not exist')
+        this_user = User.objects.get(email=request.form.get('email'))
+        if not this_user:
+            return flash('User does not exist.')
+        if request.form['email'] != this_user.email:
+            error = 'Invalid email'
+        elif bcrypt.check_password_hash(this_user.password, request.form['password']) == False:
+            error = 'Invalid password'
+        else:
+            session['logged_in'] = True
+            session['this_user'] = {'first_name': this_user.first_name}
+            flash('You are now logged in.')
+            return redirect(url_for('index'))
     return render_template('login.html', error=error)
 
 @app.route('/logout')
