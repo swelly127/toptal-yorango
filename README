@@ -9,5 +9,11 @@ Requirements:
 * Flask Bcrypt extension for encrypting your login passwords (pip install flask-bcrypt)
 * Flash CSRF extension for protecting you app against cross-site forgery (pip install flask-csrf)
 
-pip install -r requirements.txt
-python yorango.py 
+To run this app locally
+1) mongod
+2) source venv/bin/activate
+3) pip install -r requirements.txt
+4) python yorango.py
+
+This app is deployed at https://git.heroku.com/yorango.git with heroku.
+To see heroku logs run `heroku logs -n 200`

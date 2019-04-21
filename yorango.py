@@ -3,6 +3,13 @@ from models import *
 from flask_bcrypt import Bcrypt
 from flask_wtf.csrf import CSRFProtect
 import logging
+import os
+
+os.environ["MONGOLAB_URI"]="mongodb://jshu:sushi4ever@ds145456.mlab.com:45456/heroku_5kgg2qvt"
+os.environ["MONGOLAB_DB"]="mongolab-polished-82927"
+
+mongo_host = os.getenv('MONGOLAB_URI', 'mongodb://localhost:27017')
+connect(alias='default', host=mongo_host)
 
 app = Flask(__name__)
 app.config.from_object('settings')
@@ -63,7 +70,7 @@ def register():
             error = 'Email is required.'
         elif not password:
             error = 'Password is required.'
-        elif User.objects.get(email=request.form['email']):
+        elif User.objects(email=request.form['email']).first():
             error = 'User with email `{0}` is already registered.'.format(email)
         if error is None:
             new_user = User(email=email, password=bcrypt.generate_password_hash(password))

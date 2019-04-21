@@ -2,8 +2,6 @@ from mongoengine import *
 from enum import Enum
 from datetime import datetime
 
-connect('tumblelog')
-
 class User(Document):
     user_id = ObjectIdField()
     created_at = DateTimeField(default=datetime.now)
