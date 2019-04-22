@@ -4,6 +4,7 @@ import os
 from flask import Flask, request, session, g, redirect, url_for, abort, render_template, flash
 from flask_bcrypt import Bcrypt
 from flask_wtf.csrf import CSRFProtect
+from flask_googlemaps import GoogleMaps, Map
 from geopy.geocoders import Nominatim
 from models import *
 
@@ -15,6 +16,9 @@ app.config.from_object('settings')
 bcrypt = Bcrypt(app)
 csrf = CSRFProtect(app)
 csrf.init_app(app)
+
+GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY', "")
+GoogleMaps(app, key=GOOGLE_API_KEY)
 
 geolocator = Nominatim(user_agent="yorango")
 
@@ -79,8 +83,7 @@ def listings():
 
 @app.route('/listings/new')
 def listing_form():
-    google_api_key = os.environ.get('GOOGLE_API_KEY', "")
-    google_api_script = "https://maps.googleapis.com/maps/api/js?key=" + google_api_key + "&libraries=places"
+    google_api_script = "https://maps.googleapis.com/maps/api/js?key=" + GOOGLE_API_KEY + "&libraries=places"
     return render_template('listing_form.html', google_api_script=google_api_script)
 
 @app.route('/listings/<listing_id>', methods=['GET', 'PUT', 'DELETE'])
@@ -93,7 +96,9 @@ def single_listing(listing_id):
         return redirect(url_for('listings'))
     listing_obj = Listing.objects(id=listing_id).first()
     if listing_obj:
-        return render_template('listing.html', listing=listing_obj)
+        latitude = listing_obj.coordinates['coordinates'][1]
+        longitude = listing_obj.coordinates['coordinates'][0]
+        return render_template('listing.html', listing=listing_obj, latitude=latitude, longitude=longitude)
     return "Listing %s not found" & listing_id
 
 @app.route('/users')

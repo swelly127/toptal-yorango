@@ -3,6 +3,8 @@
 {% block body %}
 <h2>{{listing.title}}</h2>
 
+{{googlemap("simple-map", latitude, longitude, markers=[(latitude, longitude)])}}
+
 <div>{{ listing.description }} </div>
 <div>{{ listing.address }} </div>
 <div>{{ listing.sq_ft }} Square Foot</div>
