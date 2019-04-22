@@ -9,17 +9,13 @@
     <dl>
         <dt>Email: <input type="text" name="email">
         <dt>Password: <input type="password" name="password">
-        <dt>First Name: <input type="text" name="first_name">
-        <dt>Last Name: <input type="text" name="last_name">
-	 	<div>
-			<input type="checkbox" name="is_realtor" value="true">
-		 	<label for="is_realtor">I am a realtor</label>
-		</div>
-		<div>
-			<input type="checkbox" name="is_admin" value="true">
-		 	<label for="is_admin">I am a site admin</label>
-		</div>
-        <input type="submit" value="Sign Up">
+        <dt>
+        <select name="role">
+            <option selected="" value=0>Tenant</option>
+            <option value=1>Realtor</option>
+            <option value=2>Admin</option>
+        </select>
+        <dt><input class="signup_button" type="submit" value="Sign Up">
     </dl>
 </form>
 

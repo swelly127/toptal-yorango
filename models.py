@@ -1,16 +1,19 @@
 from mongoengine import *
-from enum import Enum
+from enum import IntEnum
 from datetime import datetime
+
+class Role(IntEnum):
+    TENANT = 0
+    REALTOR = 1
+    ADMIN = 2
 
 class User(Document):
     created_at = DateTimeField(default=datetime.now)
     email = EmailField(required=True)
-    first_name = StringField(max_length=50)
-    last_name = StringField(max_length=50)
     password = StringField(max_length=200)
-    is_realtor = BooleanField(default=False)
-    is_admin = BooleanField(default=False)
+    role = IntField(default=0)
     disabled = BooleanField(default=False)
+    meta = {'strict': False}
 
 class Listing(Document):
     title = StringField(max_length=120)

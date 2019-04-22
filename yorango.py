@@ -36,7 +36,7 @@ def listings():
     if request.method == 'POST':
         if session['this_user'] is None:
             return redirect(url_for('login'))
-        if not session['this_user']['is_realtor'] and session['this_user']['is_admin']:
+        if not session['this_user']['role']:
             return flash("You don't have permission to create a new listing")
         title = request.form.get('name')
         description = request.form.get('description', '')
@@ -111,7 +111,9 @@ def single_listing(listing_id):
 
 @app.route('/users')
 def users():
-    # todo(jshu): only show this page if the logged in user is admin
+    if session['this_user']['role'] != Role.ADMIN:
+        flash('Only site admins have permission to view other users.')
+        return redirect(url_for('index'))
     users = User.objects.all()
     return render_template('users.html', users=users)
 
@@ -121,10 +123,9 @@ def single_user(user_id):
         email = request.form.get('email')
         password = request.form.get('password')
         # todo(jshu): make sure this is correct
-        is_realtor = request.form.get('is_realtor') == "true"
-        is_admin = request.form.get('is_admin') == "true"
+        role = request.form.get('role')
         disabled = request.form.get('disabled') == "true"
-        update_data = dict(set__is_realtor=is_realtor, set__is_admin=is_admin, set__is_disabled=disabled)
+        update_data = dict(set__role=role, set__is_disabled=disabled)
         if email:
             update_data["set__email"] = email
         if password:
@@ -149,11 +150,7 @@ def register():
         elif User.objects(email=email).first():
             return flash('User with email `{0}` is already registered.'.format(email))
         new_user = User(email=email, password=bcrypt.generate_password_hash(password))
-        new_user.first_name = request.form.get('first_name')
-        new_user.last_name = request.form.get('last_name')
-        print(request.form.get('is_admin'), request.form.get('is_realtor'))
-        new_user.is_admin = request.form.get('is_admin') == "true"
-        new_user.is_realtor = request.form.get('is_realtor') == "true"
+        new_user.role = int(request.form.get('role')) or Role.TENANT
         new_user.save()
         return redirect(url_for('login'))
     return render_template('register.html')
@@ -178,10 +175,9 @@ def login():
         else:
             session['logged_in'] = True
             session['this_user'] = {
-                'first_name': this_user.first_name,
                 'email': this_user.email,
-                'is_admin': this_user.is_admin,
-                'is_realtor': this_user.is_realtor,
+                'role': this_user.role,
+                'is_disabled': this_user.disabled,
             }
             flash('You are now logged in.')
             return redirect(url_for('index'))

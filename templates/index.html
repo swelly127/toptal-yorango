@@ -5,8 +5,12 @@
 
 <div><a href="{{ url_for('listings') }}">See listings</a></div>
 
-{% if  session.this_user.is_realtor %}
+{% if session.this_user.role > 0 %}
     <div><a href="listings/new">Create a new listing</a></div>
+{% endif %}
+
+{% if session.this_user.role == 2 %}
+    <div><a href="users">View all users</a></div>
 {% endif %}
 
 {% endblock %}
