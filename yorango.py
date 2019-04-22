@@ -5,9 +5,6 @@ from flask_wtf.csrf import CSRFProtect
 import logging
 import os
 
-os.environ["MONGOLAB_URI"]="mongodb://jshu:sushi4ever@ds145456.mlab.com:45456/heroku_5kgg2qvt"
-os.environ["MONGOLAB_DB"]="mongolab-polished-82927"
-
 mongo_host = os.getenv('MONGOLAB_URI', 'mongodb://localhost:27017')
 connect(alias='default', host=mongo_host)
 
@@ -51,7 +48,9 @@ def listings():
 
 @app.route('/listings/new')
 def listing_form():
-    return render_template('listing_form.html')
+    google_api_key = os.environ.get('GOOGLE_API_KEY', "")
+    google_api_script = "https://maps.googleapis.com/maps/api/js?key=" + google_api_key + "&libraries=places"
+    return render_template('listing_form.html', google_api_script=google_api_script)
 
 @app.route('/listings/<listing_id>', methods=['GET', 'PUT', 'DELETE'])
 def single_listing(listing_id):
@@ -66,7 +65,7 @@ def single_listing(listing_id):
 @app.route('/users')
 def users():
     users = User.objects.all()
-    return render_template('users.html', u=users)
+    return render_template('users.html', users=users)
 
 @app.route('/users/<user_id>', methods=['GET', 'PUT', 'DELETE'])
 def single_user(user_id):
@@ -119,9 +118,10 @@ def login():
         else:
             session['logged_in'] = True
             session['this_user'] = {
-                'id': this_user.id,
                 'first_name': this_user.first_name,
+                'email': this_user.email,
                 'is_admin': this_user.is_admin,
+                'is_realtor': this_user.is_realtor,
             }
             flash('You are now logged in.')
             return redirect(url_for('index'))
