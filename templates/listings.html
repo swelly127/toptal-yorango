@@ -3,6 +3,8 @@
 {% block body %}
 <h2>Listings</h2>
 
+{{googlemap("all-listings-map", latitude, longitude, markers=markers, fit_markers_to_bounds=True)}}
+
 <ul>
 {% for listing in listings %}
     <li><a href={{'listings/' + listing.id|string}}>{{ listing.title }}</a></li>

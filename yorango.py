@@ -45,8 +45,6 @@ def listings():
         monthly_rent = request.form['monthly_rent']
         address = request.form['address']
         location = geolocator.geocode(address)
-        latitude = location.latitude
-        longitude = location.longitude
         is_available = request.form.get('is_available') == "true"
         new_user = Listing(
             title=title,
@@ -56,9 +54,10 @@ def listings():
             monthly_rent=monthly_rent,
             address=address,
             is_available=is_available,
-            coordinates=[longitude, latitude],
             realtor=User.objects(email=session['this_user']['email']).first().id,
         )
+        if location:
+            new_user.coordinates = [location.longitude, location.latitude]
         new_user.save()
         return redirect(url_for('listings'))
     sort_order = request.args.get('sort', 'list')
@@ -76,10 +75,23 @@ def listings():
         num_rooms__lte=num_rooms_max,
         num_rooms__gte=num_rooms_min,
     )
+    markers = []
+    sum_latitude, sum_longitude = 0, 0
+    for listing in listings:
+        latitude = listing.coordinates['coordinates'][1]
+        longitude = listing.coordinates['coordinates'][0]
+        sum_longitude += longitude
+        sum_latitude += latitude
+        markers.append({
+            'lat': latitude, 'lng':longitude,
+            'infobox': "<div>%s for $%s</div>" % (listing.title, listing.monthly_rent)})
+    starting_latitude = sum_latitude/len(markers)
+    starting_longitude = sum_longitude/len(markers)
     if (sort_order == "map"):
         return render_template('map.html', listings=listings)
     else:
-        return render_template('listings.html', listings=listings)
+        return render_template('listings.html',
+            listings=listings, latitude=starting_latitude, longitude=starting_longitude, markers=markers)
 
 @app.route('/listings/new')
 def listing_form():
