@@ -15,10 +15,17 @@
 			<input type="checkbox" name="is_available" value="true">
 		 	<label for="is_available">Available now</label>
 		</div>
-		<dt>Address: <input type="text" name="address">
+		<dt>Address: <input id="address_field" type="text" name="address">
+		<br/>
         <input type="submit" value="Sign Up">
     </dl>
 </form>
 
+<script>
+	$("#address_field").geocomplete();
+	$("#address_field").onChange(function(){
+		$("#address_field").trigger("geocode");
+	});
+</script>
 
 {% endblock %}
