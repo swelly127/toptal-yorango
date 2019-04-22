@@ -16,7 +16,7 @@ class Listing(Document):
     title = StringField(max_length=120)
     description = StringField(max_length=512)
     sq_ft = IntField()
-    monthly_rent = FloatField()
+    monthly_rent = IntField()
     num_rooms = IntField()
     realtor = ObjectIdField()
     coordinates = PointField()

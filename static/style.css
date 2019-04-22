@@ -29,3 +29,7 @@ a:hover {
 .register_form dt {
     margin: 5px;
 }
+
+.green {
+    color: green;
+}

@@ -30,6 +30,10 @@ def index():
 @app.route('/listings', methods=['GET', 'POST'])
 def listings():
     if request.method == 'POST':
+        if session['this_user'] is None:
+            return redirect(url_for('login'))
+        if not session['this_user']['is_realtor'] and session['this_user']['is_admin']:
+            return flash("You don't have permission to create a new listing")
         title = request.form.get('name')
         description = request.form.get('description', '')
         sq_ft = request.form['sq_ft']
@@ -49,6 +53,7 @@ def listings():
             address=address,
             is_available=is_available,
             coordinates=[longitude, latitude],
+            realtor=User.objects(email=session['this_user']['email']).first().id,
         )
         new_user.save()
         return redirect(url_for('listings'))
@@ -86,7 +91,10 @@ def single_listing(listing_id):
         Listing.objects(id=listing_id).delete()
         flash('Listing has been deleted.')
         return redirect(url_for('listings'))
-    return 'Listing %s' % listing_id
+    listing_obj = Listing.objects(id=listing_id).first()
+    if listing_obj:
+        return render_template('listing.html', listing=listing_obj)
+    return "Listing %s not found" & listing_id
 
 @app.route('/users')
 def users():
@@ -97,6 +105,18 @@ def users():
 @app.route('/users/<user_id>', methods=['GET', 'PUT', 'DELETE'])
 def single_user(user_id):
     if request.method == 'PUT':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        # todo(jshu): make sure this is correct
+        is_realtor = request.form.get('is_realtor') == "true"
+        is_admin = request.form.get('is_admin') == "true"
+        disabled = request.form.get('disabled') == "true"
+        update_data = dict(set__is_realtor=is_realtor, set__is_admin=is_admin, set__is_disabled=disabled)
+        if email:
+            update_data["set__email"] = email
+        if password:
+            update_data["password"] = password
+        User.objects(id=user_id).modify(upsert=False, new=True, **update_data)
         return None
     if request.method == 'DELETE':
         User.objects(id=user_id).delete()

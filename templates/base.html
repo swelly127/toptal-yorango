@@ -20,7 +20,7 @@
         <a href="{{ url_for('login') }}">Login</a> |
         <a href="{{ url_for('register') }}">Register</a>
     {% else %}
-        Logged in as {{ session.this_user.first_name }} <a href="{{ url_for('logout') }}">Logout</a>
+        Logged in as {{ session.this_user.email }} | <a href="{{ url_for('logout') }}">Logout</a>
     {% endif %}
 </div>
 

@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
 {% block body %}
-<h2>Listings</h2>
+<h2>Welcome</h2>
 
-<ul>
-{% for listing in listings %}
-    <li><a href="{{ url_for('listings', id=listing._id) }}">{{ listing.title }}</a></li>
-{% endfor %}
-</ul>
+<div><a href="{{ url_for('listings') }}">See listings</a></div>
+
+{% if  session.this_user.is_realtor %}
+    <div><a href="listings/new">Create a new listing</a></div>
+{% endif %}
 
 {% endblock %}

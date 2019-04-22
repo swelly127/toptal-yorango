@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block body %}
+<h2>{{listing.title}}</h2>
+
+<div>{{ listing.description }} </div>
+<div>{{ listing.address }} </div>
+<div>{{ listing.sq_ft }} Square Foot</div>
+<div>${{ listing.monthly_rent }} Monthly Rent</div>
+<div>{{ listing.num_rooms }} Rooms</div>
+{% if listing.is_available %}
+	<div class="green">Available now :)</div>
+{% endif %}
+
+{% endblock %}

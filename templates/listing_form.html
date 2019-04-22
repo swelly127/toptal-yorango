@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block body %}
+
 <h2>Create a new listing</h2>
 {% if error %}<p class=error><strong>Error:</strong> {{ error }}{% endif %}
 <form class="register_form" action="{{ url_for('listings') }}" method="post">
@@ -13,7 +14,7 @@
 		<dt>Rent: $<input required type="number" name="monthly_rent">
 		<div>
 			<input type="checkbox" name="is_available" value="true">
-		 	<label for="is_available">Available now</label>
+			<label for="is_available">Available now</label>
 		</div>
 		<dt>Address: <input required id="address_field" type="text" name="address">
 		<br/>
@@ -22,7 +23,7 @@
 </form>
 
 <script>
-	$("#address_field").geocomplete();
+    $("#address_field").geocomplete();
 </script>
 
 {% endblock %}
