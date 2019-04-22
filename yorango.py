@@ -77,13 +77,14 @@ def listings():
     markers = []
     sum_latitude, sum_longitude = 0, 0
     for listing in listings:
-        latitude = listing.coordinates['coordinates'][1]
-        longitude = listing.coordinates['coordinates'][0]
-        sum_longitude += longitude
-        sum_latitude += latitude
-        markers.append({
-            'lat': latitude, 'lng':longitude,
-            'infobox': "<div><a href='listings/%s'>%s for $%s</a></div>" % (str(listing.id), listing.title, listing.monthly_rent)})
+        if listing.coordinates:
+            latitude = listing.coordinates['coordinates'][1]
+            longitude = listing.coordinates['coordinates'][0]
+            sum_longitude += longitude
+            sum_latitude += latitude
+            markers.append({
+                'lat': latitude, 'lng':longitude,
+                'infobox': "<div><a href='listings/%s'>%s for $%s</a></div>" % (str(listing.id), listing.title, listing.monthly_rent)})
     starting_latitude = sum_latitude/len(markers)
     starting_longitude = sum_longitude/len(markers)
     return render_template('listings.html',
@@ -104,9 +105,11 @@ def single_listing(listing_id):
         return redirect(url_for('listings'))
     listing_obj = Listing.objects(id=listing_id).first()
     if listing_obj:
-        latitude = listing_obj.coordinates['coordinates'][1]
-        longitude = listing_obj.coordinates['coordinates'][0]
-        return render_template('listing.html', listing=listing_obj, latitude=latitude, longitude=longitude)
+        if listing_obj.coordinates:
+            latitude = listing_obj.coordinates['coordinates'][1]
+            longitude = listing_obj.coordinates['coordinates'][0]
+            return render_template('listing.html', listing=listing_obj, map=True, latitude=latitude, longitude=longitude)
+        return render_template('listing.html', map=False, listing=listing_obj)
     return "Listing %s not found" & listing_id
 
 @app.route('/users')

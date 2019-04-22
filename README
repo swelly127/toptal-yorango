@@ -18,8 +18,8 @@ To run this app locally
 This app is deployed at https://git.heroku.com/yorango.git with heroku.
 To see heroku logs run `heroku logs -n 200`
 
-$ todo: why does user.email not show up in base?
-$ todo: implement all the PUT methods
+$ todo: finish implementing all the PUT methods
 $ todo: user/edit and listing/edit pages
-$ todo: implement list view
-$ todo: implement map view
+$ todo: implement listing view filters
+$ todo: add email of realtor on single listing page
+$ todo: users should only be able to see available listings

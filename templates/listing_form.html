@@ -9,9 +9,9 @@
     <dl>
         <dt>Name: <input required type="text" name="name">
         <dt>Description: <textarea type="text" name="description"></textarea>
-        <dt>Number of Rooms: <input required type="number" name="num_rooms">
+        <dt>Number of Rooms: <input required type="number" name="num_rooms" min="0" max="10000">
         <dt>Square Footage: <input required type="number" name="sq_ft">
-		<dt>Rent: $<input required type="number" name="monthly_rent">
+		<dt>Rent: $<input required type="number" name="monthly_rent" min="0" max="10000000">
 		<div>
 			<input type="checkbox" name="is_available" value="true">
 			<label for="is_available">Available now</label>
