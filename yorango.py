@@ -60,7 +60,6 @@ def listings():
             new_user.coordinates = [location.longitude, location.latitude]
         new_user.save()
         return redirect(url_for('listings'))
-    sort_order = request.args.get('sort', 'list')
     price_low = request.form.get('price_low', 0)
     price_high = request.form.get('price_high', VERY_LARGE_INT) # Equal to $100M rent
     size_max = request.form.get('size_max', VERY_LARGE_INT) # Equal to 2300 acres
@@ -84,14 +83,11 @@ def listings():
         sum_latitude += latitude
         markers.append({
             'lat': latitude, 'lng':longitude,
-            'infobox': "<div>%s for $%s</div>" % (listing.title, listing.monthly_rent)})
+            'infobox': "<div><a href='listings/%s'>%s for $%s</a></div>" % (str(listing.id), listing.title, listing.monthly_rent)})
     starting_latitude = sum_latitude/len(markers)
     starting_longitude = sum_longitude/len(markers)
-    if (sort_order == "map"):
-        return render_template('map.html', listings=listings)
-    else:
-        return render_template('listings.html',
-            listings=listings, latitude=starting_latitude, longitude=starting_longitude, markers=markers)
+    return render_template('listings.html',
+        listings=listings, latitude=starting_latitude, longitude=starting_longitude, markers=markers)
 
 @app.route('/listings/new')
 def listing_form():
