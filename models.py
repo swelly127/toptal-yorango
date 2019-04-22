@@ -3,7 +3,6 @@ from enum import Enum
 from datetime import datetime
 
 class User(Document):
-    user_id = ObjectIdField()
     created_at = DateTimeField(default=datetime.now)
     email = EmailField(required=True)
     first_name = StringField(max_length=50)
@@ -14,7 +13,6 @@ class User(Document):
     disabled = BooleanField(default=False)
 
 class Listing(Document):
-    listing_id = ObjectIdField()
     title = StringField(max_length=120)
     description = StringField(max_length=512)
     sq_ft = IntField()
