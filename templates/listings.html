@@ -5,7 +5,7 @@
 
 <ul>
 {% for listing in listings %}
-    <li><a href="{{ url_for('listing', id=listing._id) }}">{{ listing.title }}</a></li>
+    <li><a href="{{ url_for('listings', id=listing._id) }}">{{ listing.to_json() }}</a></li>
 {% endfor %}
 </ul>
 

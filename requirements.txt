@@ -15,6 +15,8 @@ Flask-SQLAlchemy==2.3.2
 Flask-WTF==0.14.2
 future==0.17.1
 geocoder==1.38.1
+geographiclib==1.49
+geopy==1.19.0
 gunicorn==19.9.0
 idna==2.8
 itsdangerous==1.1.0
