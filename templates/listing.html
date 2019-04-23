@@ -26,7 +26,13 @@
 		<a href="mailto:{{realtor.email}}" target="_blank">{{realtor.email}}</a> 📫
 	</div>
 {% else %}
-	<div class="red">The realtor for this listing is no longer active.</div>
+	<div class="red">The realtor for this listing is no longer active on our site.</div>
 {% endif %}
+
+<form class="register_form" action="{{listing.id|string}}" method="post">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="_method" value="DELETE" />
+    <input type="submit" value="Delete Listing">
+</form>
 
 {% endblock %}

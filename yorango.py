@@ -1,7 +1,7 @@
 import logging
 import os
 
-from flask import Flask, request, session, g, redirect, url_for, abort, render_template, flash
+from flask import Flask, request, session, redirect, url_for, render_template, flash
 from flask_bcrypt import Bcrypt
 from flask_wtf.csrf import CSRFProtect
 from flask_googlemaps import GoogleMaps, Map
@@ -97,14 +97,25 @@ def listing_form():
     google_api_script = "https://maps.googleapis.com/maps/api/js?key=" + GOOGLE_API_KEY + "&libraries=places"
     return render_template('listing_form.html', google_api_script=google_api_script)
 
-@app.route('/listings/<listing_id>', methods=['GET', 'PUT', 'DELETE'])
-def single_listing(listing_id):
-    if request.method == 'PUT':
-        return None
-    if request.method == 'DELETE':
-        Listing.objects(id=listing_id).delete()
-        flash('Listing has been deleted.')
-        return redirect(url_for('listings'))
+@app.route('/listings/<listing_id>', methods=['PUT'])
+def update_listing(listing_id):
+    return None
+
+@app.route('/listings/<listing_id>', methods=['POST'])
+def post_listing(listing_id):
+    if request.form.get("_method") == "PUT":
+        return update_listing(listing_id)
+    if request.form.get("_method") == "DELETE":
+        return delete_listing(listing_id)
+
+@app.route('/listings/<listing_id>', methods=['DELETE'])
+def delete_listing(listing_id):
+    Listing.objects(id=listing_id).delete()
+    flash('Listing has been deleted.')
+    return redirect(url_for('listings'))
+
+@app.route('/listings/<listing_id>', methods=['GET'])
+def get_listing(listing_id):
     listing_obj = Listing.objects(id=listing_id).first()
     if listing_obj:
         realtor = None
@@ -126,29 +137,33 @@ def users():
     users = User.objects.all()
     return render_template('users.html', users=users)
 
-@app.route('/users/<user_id>', methods=['GET', 'PUT', 'DELETE'])
-def single_user(user_id):
-    if request.method == 'PUT':
-        email = request.form.get('email', default='')
-        password = request.form.get('password', default='')
-        # todo(jshu): make sure this is correct
-        role = request.form.get('role', default=None)
-        disabled = request.form.get('disabled', default=None)
-        update_data = dict()
-        if disabled is not None:
-            update_data["set__disabled"] = disabled == "true"
-        if role is not None:
-            update_data["set__role"] = int(role)
-        if email:
-            update_data["set__email"] = email
-        if password:
-            update_data["password"] = password
-        User.objects(id=user_id).modify(upsert=False, new=True, **update_data)
-        return None
-    if request.method == 'DELETE':
-        User.objects(id=user_id).delete()
-        flash('User account has been deleted.')
-        return redirect(url_for('users'))
+@app.route('/users/<user_id>', methods=['PUT'])
+def update_user(user_id):
+    email = request.form.get('email', default='')
+    password = request.form.get('password', default='')
+    # todo(jshu): make sure this is correct
+    role = request.form.get('role', default=None)
+    disabled = request.form.get('disabled', default=None)
+    update_data = dict()
+    if disabled is not None:
+        update_data["set__disabled"] = disabled == "true"
+    if role is not None:
+        update_data["set__role"] = int(role)
+    if email:
+        update_data["set__email"] = email
+    if password:
+        update_data["password"] = password
+    User.objects(id=user_id).modify(upsert=False, new=True, **update_data)
+    return None
+
+@app.route('/users/<user_id>', methods=['DELETE'])
+def delete_user(user_id):
+    User.objects(id=user_id).delete()
+    flash('User account has been deleted.')
+    return redirect(url_for('users'))
+
+@app.route('/users/<user_id>', methods=['GET'])
+def get_user(user_id):
     return 'User %s' % user_id
 
 @app.route('/register', methods=('GET', 'POST'))
