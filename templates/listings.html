@@ -3,6 +3,20 @@
 {% block body %}
 <h2>Listings</h2>
 
+<form action="{{ url_for('listings') }}" method="get">
+	<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+	<dl>
+		<dt>Min Price: <input type="number" min="0" max="10000000" name="price_low">
+		<dt>Max Price: <input type="number" min="0" max="10000000" name="price_high">
+		<dt>Min Sq Ft: <input type="number" min="0" max="10000000" name="size_max">
+		<dt>Max Sq Ft: <input type="number" min="0" max="10000000" name="size_min">
+		<dt>Min Rooms: <input type="number" min="0" max="10000000" name="num_rooms_max">
+		<dt>Max Rooms: <input type="number" min="0" max="10000000" name="num_rooms_min">
+		<br/>
+		<input type="submit" value="Search">
+	</dl>
+</form>
+
 {{googlemap("all-listings-map", latitude, longitude, markers=markers, fit_markers_to_bounds=True)}}
 
 <ul>

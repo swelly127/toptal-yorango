@@ -46,7 +46,7 @@ def listings():
         address = request.form['address']
         location = geolocator.geocode(address)
         is_available = request.form.get('is_available') == "true"
-        new_user = Listing(
+        new_listing = Listing(
             title=title,
             description=description,
             sq_ft=sq_ft,
@@ -58,14 +58,14 @@ def listings():
         )
         if location:
             new_user.coordinates = [location.longitude, location.latitude]
-        new_user.save()
+        new_listing.save()
         return redirect(url_for('listings'))
-    price_low = request.form.get('price_low', 0)
-    price_high = request.form.get('price_high', VERY_LARGE_INT) # Equal to $100M rent
-    size_max = request.form.get('size_max', VERY_LARGE_INT) # Equal to 2300 acres
-    size_min = request.form.get('size_min', 0)
-    num_rooms_max = request.form.get('num_rooms_max', VERY_LARGE_INT)
-    num_rooms_min = request.form.get('num_rooms_min', 0)
+    price_low = request.args.get('price_low', default=0, type=int)
+    price_high = request.args.get('price_high', default=VERY_LARGE_INT, type=int) # Equal to $100M rent
+    size_max = request.args.get('size_max', default=VERY_LARGE_INT, type=int) # Equal to 2300 acres
+    size_min = request.args.get('size_min', default=0, type=int)
+    num_rooms_max = request.args.get('num_rooms_max', default=VERY_LARGE_INT, type=int)
+    num_rooms_min = request.args.get('num_rooms_min', default=0, type=int)
     listings = Listing.objects(
         monthly_rent__lte=price_high,
         monthly_rent__gte=price_low,
@@ -85,8 +85,10 @@ def listings():
             markers.append({
                 'lat': latitude, 'lng':longitude,
                 'infobox': "<div><a href='listings/%s'>%s for $%s</a></div>" % (str(listing.id), listing.title, listing.monthly_rent)})
-    starting_latitude = sum_latitude/len(markers)
-    starting_longitude = sum_longitude/len(markers)
+    starting_latitude, starting_longitude = 0, 0
+    if len(markers) > 0:
+        starting_latitude = sum_latitude/len(markers)
+        starting_longitude = sum_longitude/len(markers)
     return render_template('listings.html',
         listings=listings, latitude=starting_latitude, longitude=starting_longitude, markers=markers)
 
