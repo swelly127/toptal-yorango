@@ -17,6 +17,8 @@
 <div>{{ listing.num_rooms }} Rooms</div>
 {% if listing.is_available %}
 	<div class="green">Available now :)</div>
+{% else %}
+	<div class="red">Occupied</div>
 {% endif %}
 
 {% endblock %}

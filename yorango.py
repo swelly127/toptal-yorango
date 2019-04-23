@@ -125,12 +125,16 @@ def users():
 @app.route('/users/<user_id>', methods=['GET', 'PUT', 'DELETE'])
 def single_user(user_id):
     if request.method == 'PUT':
-        email = request.form.get('email')
-        password = request.form.get('password')
+        email = request.form.get('email', default='')
+        password = request.form.get('password', default='')
         # todo(jshu): make sure this is correct
-        role = request.form.get('role')
-        disabled = request.form.get('disabled') == "true"
-        update_data = dict(set__role=role, set__is_disabled=disabled)
+        role = request.form.get('role', default=None)
+        disabled = request.form.get('disabled', default=None)
+        update_data = dict()
+        if disabled is not None:
+            update_data["set__disabled"] = disabled == "true"
+        if role is not None:
+            update_data["set__role"] = int(role)
         if email:
             update_data["set__email"] = email
         if password:
