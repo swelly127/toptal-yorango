@@ -20,7 +20,6 @@ To see heroku logs run `heroku logs -n 200`
 
 $ todo: finish implementing all the PUT methods
 $ todo: user/edit and listing/edit pages
-$ todo: add email of realtor on single listing page
 
 BONUS
 $ todo: add location search functionality

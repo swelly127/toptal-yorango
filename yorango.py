@@ -107,11 +107,15 @@ def single_listing(listing_id):
         return redirect(url_for('listings'))
     listing_obj = Listing.objects(id=listing_id).first()
     if listing_obj:
+        realtor = None
+        if listing_obj.realtor:
+            realtor = User.objects(id=listing_obj.realtor).first()
         if listing_obj.coordinates:
             latitude = listing_obj.coordinates['coordinates'][1]
             longitude = listing_obj.coordinates['coordinates'][0]
-            return render_template('listing.html', listing=listing_obj, map=True, latitude=latitude, longitude=longitude)
-        return render_template('listing.html', map=False, listing=listing_obj)
+            return render_template('listing.html', listing=listing_obj, map=True, realtor=realtor,
+                latitude=latitude, longitude=longitude)
+        return render_template('listing.html', map=False, listing=listing_obj, realtor=realtor)
     return "Listing %s not found" & listing_id
 
 @app.route('/users')

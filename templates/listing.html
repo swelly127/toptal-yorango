@@ -21,4 +21,12 @@
 	<div class="red">Occupied</div>
 {% endif %}
 
+{% if realtor %}
+	<div>For more information on this listing please contact
+		<a href="mailto:{{realtor.email}}" target="_blank">{{realtor.email}}</a> 📫
+	</div>
+{% else %}
+	<div class="red">The realtor for this listing is no longer active.</div>
+{% endif %}
+
 {% endblock %}
