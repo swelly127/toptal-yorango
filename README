@@ -19,6 +19,7 @@ This app is deployed at https://git.heroku.com/yorango.git with heroku.
 To see heroku logs run `heroku logs -n 200`
 
 $ todo: finish implementing all the PUT methods
+$ todo: better error handling around invalid user ids
 $ todo: user/edit and listing/edit pages
 $ todo: add better permissions
 

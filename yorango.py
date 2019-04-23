@@ -57,7 +57,7 @@ def listings():
             realtor=User.objects(email=session['this_user']['email']).first().id,
         )
         if location:
-            new_user.coordinates = [location.longitude, location.latitude]
+            new_listing.coordinates = [location.longitude, location.latitude]
         new_listing.save()
         return redirect(url_for('listings'))
     price_low = request.args.get('price_low', default=0, type=int)
@@ -107,6 +107,7 @@ def post_listing(listing_id):
         return update_listing(listing_id)
     if request.form.get("_method") == "DELETE":
         return delete_listing(listing_id)
+    return redirect(url_for('listings'))
 
 @app.route('/listings/<listing_id>', methods=['DELETE'])
 def delete_listing(listing_id):
@@ -160,6 +161,14 @@ def update_user(user_id):
 def delete_user(user_id):
     User.objects(id=user_id).delete()
     flash('User account has been deleted.')
+    return redirect(url_for('users'))
+
+@app.route('/users/<user_id>', methods=['POST'])
+def post_user(user_id):
+    if request.form.get("_method") == "PUT":
+        return update_user(user_id)
+    if request.form.get("_method") == "DELETE":
+        return delete_user(user_id)
     return redirect(url_for('users'))
 
 @app.route('/users/<user_id>', methods=['GET'])

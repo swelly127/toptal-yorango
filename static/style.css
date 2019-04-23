@@ -13,6 +13,10 @@ a:hover {
     text-decoration: none;
 }
 
+.inline {
+    display: inline;
+}
+
 .metanav {
     background-color: #ddd;
     padding: 10px;

@@ -13,6 +13,11 @@
 		{% elif user.role == 2 %}
 			This user is an admin.
 		{% endif %}
+		<form class="inline" action="users/{{user.id|string}}" method="post">
+		    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+		    <input type="hidden" name="_method" value="DELETE" />
+		    <input type="submit" value="Delete User">
+		</form>
 		</li>
 	{% endfor %}
 </ul>
