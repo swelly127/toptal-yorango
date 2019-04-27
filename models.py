@@ -12,8 +12,14 @@ class User(Document):
     email = EmailField(required=True)
     password = StringField(max_length=200)
     role = IntField(default=0)
-    disabled = BooleanField(default=False)
     meta = {'strict': False}
+    def serialize(self):
+        return {
+            'id': str(self.id),
+            'created_at': self.created_at,
+            'email': self.email,
+            'role': self.role,
+        }
 
 class Listing(Document):
     title = StringField(max_length=120)
@@ -27,3 +33,18 @@ class Listing(Document):
     is_available = BooleanField(default=True)
     occupied_by = ObjectIdField()
     created_at = DateTimeField(default=datetime.now)
+    def serialize(self):
+        return {
+            'id': str(self.id),
+            'title': self.title,
+            'description': self.description,
+            'sq_ft': self.sq_ft,
+            'monthly_rent': self.monthly_rent,
+            'num_rooms': self.num_rooms,
+            'realtor': str(self.realtor),
+            'coordinates': self.coordinates,
+            'address': self.address,
+            'is_available': self.is_available,
+            'occupied_by': self.occupied_by,
+            'created_at': self.created_at,
+        }

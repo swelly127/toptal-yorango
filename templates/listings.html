@@ -21,7 +21,7 @@
 
 <ul>
 {% for listing in listings %}
-	{% if session.this_user.role > 0 or listing.is_available %}
+	{% if session.user.role > 0 or listing.is_available %}
 		<li><a href={{'listings/' + listing.id|string}}>{{ listing.title }}</a></li>
 	{% endif %}
 {% endfor %}

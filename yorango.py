@@ -1,12 +1,17 @@
+import bson
 import logging
 import os
 
-from flask import Flask, request, session, redirect, url_for, render_template, flash
+from flask import Flask, jsonify, request, session, redirect, url_for, render_template, flash
 from flask_bcrypt import Bcrypt
+from flask_restful import Resource, Api
 from flask_wtf.csrf import CSRFProtect
 from flask_googlemaps import GoogleMaps, Map
+from functools import wraps
 from geopy.geocoders import Nominatim
 from models import *
+from helpers import *
+from resources import *
 
 mongo_host = os.getenv('MONGOLAB_URI', 'mongodb://localhost:27017')
 connect(alias='default', host=mongo_host)
@@ -17,6 +22,8 @@ bcrypt = Bcrypt(app)
 csrf = CSRFProtect(app)
 csrf.init_app(app)
 
+api = Api(app, prefix="/api/v1")
+
 GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY', "")
 GoogleMaps(app, key=GOOGLE_API_KEY)
 
@@ -24,19 +31,86 @@ geolocator = Nominatim(user_agent="yorango")
 
 VERY_LARGE_INT = 100000000
 
-@app.route('/')
-def index():
-    if session.get('logged_in', False):
-        listings = Listing.objects.all()
-        return render_template('index.html', listings=listings)
-    return redirect(url_for('login'))
+class SingleUserResource(Resource):
+    def get(self, user_id):
+        user = User.objects(id=user_id).first()
+        if user:
+            return jsonify(user.serialize())
+        return "User not found", 200
 
-@app.route('/listings', methods=['GET', 'POST'])
-def listings():
-    if request.method == 'POST':
-        if session['this_user'] is None:
+    def put(self, user_id):
+        email = request.form.get('email', default='')
+        password = request.form.get('password', default='')
+        role = request.form.get('role', default=None)
+        update_data = dict()
+        if role is not None:
+            update_data["set__role"] = int(role)
+        if email:
+            update_data["set__email"] = email
+        if password:
+            update_data["password"] = password
+        User.objects(id=user_id).modify(upsert=False, new=True, **update_data)
+        return "User updated", 200
+
+    def delete(self, user_id):
+        User.objects(id=user_id).delete()
+        return "User deleted", 200
+
+class SingleListingResource(Resource):
+    def get(self, listing_id):
+        listing = Listing.objects(id=listing_id).first()
+        if listing:
+            return jsonify(listing.serialize())
+        return "Listing not found", 200
+
+    def delete(self, listing_id):
+        listing = Listing.objects(id=listing_id).first()
+        return delete_listing(session, listing)
+
+    def put(self, listing_id):
+        listing = Listing.objects(id=listing_id).first()
+        request.listing = listing
+        return update_listing(session, request)
+
+class UserResource(Resource):
+    def get(self):
+        users = User.objects.all()
+        return jsonify([u.serialize() for u in users])
+
+    def post(self):
+        email = request.form.get('email')
+        password = request.form.get('password')
+        error_msg = None
+        if not email:
+            error_msg = 'Email is required.'
+        elif not password:
+            error_msg = 'Password is required.'
+        elif User.objects(email=email).first():
+            error_msg = 'User with email `{0}` is already registered.'.format(email)
+        if error_msg and client == 'web':
+            return error_msg, 400
+        elif error_msg:
+            flash(error_msg)
+            return redirect(url_for('register'))
+        new_user = User(email=email, password=bcrypt.generate_password_hash(password))
+        new_user.role = int(request.form.get('role')) or Role.TENANT
+        new_user.save()
+        client = request.form.get('client')
+        if client == "web":
             return redirect(url_for('login'))
-        if not session['this_user']['role']:
+        return "User created", 200
+
+    # todo login
+
+class ListingResource(Resource):
+    def get(self):
+        listings = Listing.objects.all()
+        return jsonify([l.serialize() for l in listings])
+
+    def post(self):
+        if session.get('user') is None:
+            return redirect(url_for('login'))
+        if not session['user'].get('role'):
             return flash("You don't have permission to create a new listing")
         title = request.form.get('name')
         description = request.form.get('description', '')
@@ -54,12 +128,92 @@ def listings():
             monthly_rent=monthly_rent,
             address=address,
             is_available=is_available,
-            realtor=User.objects(email=session['this_user']['email']).first().id,
+            realtor=User.objects(email=session['user']['email']).first().id,
         )
         if location:
             new_listing.coordinates = [location.longitude, location.latitude]
         new_listing.save()
-        return redirect(url_for('listings'))
+        return "ok", 200
+
+api.add_resource(SingleUserResource, '/users/<user_id>')
+api.add_resource(UserResource, '/users')
+api.add_resource(SingleListingResource, '/listings/<listing_id>')
+api.add_resource(ListingResource, '/listings')
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if session.get('user') is None:
+            return redirect(url_for('login', next=request.url))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if session.get('user') is None:
+            flash('This action is only allowed for site admins. Please login to an admin account.')
+            return redirect(url_for('login', next=request.url))
+        elif session['user']['role'] < 2:
+            flash('This action is only allowed for site admins.')
+            return redirect(url_for('index'))
+        else:
+            return f(*args, **kwargs)
+    return decorated_function
+
+def realtor_or_admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if session.get('user') is None:
+            flash('This action is only allowed for site admins. Please login to an admin or realtor account.')
+            return redirect(url_for('login', next=request.url))
+        elif session['user']['role'] < 1:
+            return flash('This action is only allowed for site admins and realtors.')
+        else:
+            return f(*args, **kwargs)
+    return decorated_function
+
+def find_listing(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        listing_id = kwargs.get('listing_id', None)
+        if listing_id:
+            if not bson.objectid.ObjectId.is_valid(listing_id):
+                flash('This is not a valid listing id.')
+                return render_template('base.html', baseMsg="Invalid listing id."), 404
+            listing = Listing.objects(id=listing_id).first()
+            if not listing:
+                flash('Listing not found.')
+                return render_template('base.html', baseMsg="Listing not found."), 404
+            request.listing = listing
+        return f(*args, **kwargs)
+    return decorated_function
+
+def find_user(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        user_id = kwargs.get('user_id', None)
+        if user_id:
+            if not bson.objectid.ObjectId.is_valid(user_id):
+                flash('This is not a valid user id.')
+                return render_template('base.html', baseMsg="Invalid user id."), 404
+            user = User.objects(id=user_id).first()
+            if not user:
+                flash('User not found.')
+                return render_template('base.html', baseMsg="User not found."), 404
+            request.user = user
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.route('/')
+@login_required
+def index():
+    listings = Listing.objects.all()
+    return render_template('index.html', listings=listings)
+
+@app.route('/listings')
+@login_required
+def listings():
     price_low = request.args.get('price_low', default=0, type=int)
     price_high = request.args.get('price_high', default=VERY_LARGE_INT, type=int) # Equal to $100M rent
     size_max = request.args.get('size_max', default=VERY_LARGE_INT, type=int) # Equal to 2300 acres
@@ -93,103 +247,71 @@ def listings():
         listings=listings, latitude=starting_latitude, longitude=starting_longitude, markers=markers)
 
 @app.route('/listings/new')
+@realtor_or_admin_required
 def listing_form():
     google_api_script = "https://maps.googleapis.com/maps/api/js?key=" + GOOGLE_API_KEY + "&libraries=places"
     return render_template('listing_form.html', google_api_script=google_api_script)
 
-@app.route('/listings/<listing_id>', methods=['PUT'])
-def update_listing(listing_id):
-    return None
+@app.route('/listings/edit/<listing_id>')
+@realtor_or_admin_required
+@find_listing
+def get_listing_form(listing_id):
+    if session['user']['role'] == Role.REALTOR and request.listing['realtor'] != session['user'].id:
+        return render_template('base.html', baseMsg="Permission denied. Can only edit listings you own."), 500
+    google_api_script = "https://maps.googleapis.com/maps/api/js?key=" + GOOGLE_API_KEY + "&libraries=places"
+    return render_template('listing_edit.html', listing=request.listing, google_api_script=google_api_script)
 
 @app.route('/listings/<listing_id>', methods=['POST'])
+@realtor_or_admin_required
+@find_listing
 def post_listing(listing_id):
     if request.form.get("_method") == "PUT":
-        return update_listing(listing_id)
+        return update_listing(session, request)
     if request.form.get("_method") == "DELETE":
-        return delete_listing(listing_id)
-    return redirect(url_for('listings'))
-
-@app.route('/listings/<listing_id>', methods=['DELETE'])
-def delete_listing(listing_id):
-    Listing.objects(id=listing_id).delete()
-    flash('Listing has been deleted.')
+        return delete_listing(session, request.listing)
     return redirect(url_for('listings'))
 
 @app.route('/listings/<listing_id>', methods=['GET'])
-def get_listing(listing_id):
-    listing_obj = Listing.objects(id=listing_id).first()
-    if listing_obj:
-        realtor = None
-        if listing_obj.realtor:
-            realtor = User.objects(id=listing_obj.realtor).first()
-        if listing_obj.coordinates:
-            latitude = listing_obj.coordinates['coordinates'][1]
-            longitude = listing_obj.coordinates['coordinates'][0]
-            return render_template('listing.html', listing=listing_obj, map=True, realtor=realtor,
-                latitude=latitude, longitude=longitude)
-        return render_template('listing.html', map=False, listing=listing_obj, realtor=realtor)
-    return "Listing %s not found" & listing_id
+@login_required
+@find_listing
+def display_listing(listing_id):
+    listing_obj = request.listing
+    realtor = None
+    if listing_obj.realtor:
+        realtor = User.objects(id=listing_obj.realtor).first()
+    if listing_obj.coordinates:
+        latitude = listing_obj.coordinates['coordinates'][1]
+        longitude = listing_obj.coordinates['coordinates'][0]
+        return render_template('listing.html', listing=listing_obj, map=True, realtor=realtor,
+            latitude=latitude, longitude=longitude)
+    return render_template('listing.html', map=False, listing=listing_obj, realtor=realtor)
 
 @app.route('/users')
+@admin_required
 def users():
-    if session['this_user']['role'] != Role.ADMIN:
-        flash('Only site admins have permission to view other users.')
-        return redirect(url_for('index'))
     users = User.objects.all()
     return render_template('users.html', users=users)
 
-@app.route('/users/<user_id>', methods=['PUT'])
-def update_user(user_id):
-    email = request.form.get('email', default='')
-    password = request.form.get('password', default='')
-    # todo(jshu): make sure this is correct
-    role = request.form.get('role', default=None)
-    disabled = request.form.get('disabled', default=None)
-    update_data = dict()
-    if disabled is not None:
-        update_data["set__disabled"] = disabled == "true"
-    if role is not None:
-        update_data["set__role"] = int(role)
-    if email:
-        update_data["set__email"] = email
-    if password:
-        update_data["password"] = password
-    User.objects(id=user_id).modify(upsert=False, new=True, **update_data)
-    return None
-
 @app.route('/users/<user_id>', methods=['DELETE'])
+@login_required
+@find_user
 def delete_user(user_id):
-    User.objects(id=user_id).delete()
-    flash('User account has been deleted.')
+    if session['user'].id == user_id or session['user']['role'] == ROLE.ADMIN:
+        request.user.delete()
+        flash('User account has been deleted.')
+        return redirect(url_for('users'))
+    flash('You do not have permission to delete this account.')
     return redirect(url_for('users'))
 
 @app.route('/users/<user_id>', methods=['POST'])
+@find_user
 def post_user(user_id):
-    if request.form.get("_method") == "PUT":
-        return update_user(user_id)
     if request.form.get("_method") == "DELETE":
         return delete_user(user_id)
     return redirect(url_for('users'))
 
-@app.route('/users/<user_id>', methods=['GET'])
-def get_user(user_id):
-    return 'User %s' % user_id
-
-@app.route('/register', methods=('GET', 'POST'))
+@app.route('/register')
 def register():
-    if request.method == 'POST':
-        email = request.form.get('email')
-        password = request.form.get('password')
-        if not email:
-            return flash('Email is required.')
-        elif not password:
-            return flash('Password is required.')
-        elif User.objects(email=email).first():
-            return flash('User with email `{0}` is already registered.'.format(email))
-        new_user = User(email=email, password=bcrypt.generate_password_hash(password))
-        new_user.role = int(request.form.get('role')) or Role.TENANT
-        new_user.save()
-        return redirect(url_for('login'))
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -202,28 +324,22 @@ def login():
             return flash('Email is required.')
         elif not password:
             return flash('Password is required.')
-        this_user = User.objects.get(email=email)
-        if not this_user:
+        user = User.objects.get(email=email)
+        if not user:
             return flash('User does not exist.')
-        if email != this_user.email:
+        if email != user.email:
             error = 'Invalid email'
-        elif bcrypt.check_password_hash(this_user.password, password) == False:
+        elif bcrypt.check_password_hash(user.password, password) == False:
             error = 'Invalid password'
         else:
-            session['logged_in'] = True
-            session['this_user'] = {
-                'email': this_user.email,
-                'role': this_user.role,
-                'is_disabled': this_user.disabled,
-            }
+            session['user'] = user.serialize()
             flash('You are now logged in.')
             return redirect(url_for('index'))
     return render_template('login.html', error=error)
 
 @app.route('/logout')
 def logout():
-    session.pop('logged_in', None)
-    session.pop('this_user', None)
+    session['user'] = None
     flash('You are now logged out.')
     return redirect(url_for('index'))
 

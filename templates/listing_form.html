@@ -4,7 +4,7 @@
 
 <h2>Create a new listing</h2>
 {% if error %}<p class=error><strong>Error:</strong> {{ error }}{% endif %}
-<form class="register_form" action="{{ url_for('listings') }}" method="post">
+<form class="register_form" action="/api/v1/listings" method="post">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
     <dl>
         <dt>Name: <input required type="text" name="name">

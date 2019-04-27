@@ -13,13 +13,28 @@
 		{% elif user.role == 2 %}
 			This user is an admin.
 		{% endif %}
-		<form class="inline" action="users/{{user.id|string}}" method="post">
-		    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-		    <input type="hidden" name="_method" value="DELETE" />
-		    <input type="submit" value="Delete User">
-		</form>
+		<button type="button" id="deleteUser" data-userid={{user.id|string}}>Delete User</button>
 		</li>
 	{% endfor %}
 </ul>
+
+<script type="text/javascript">
+	$(function(){
+		$('#deleteUser').click(function(e){
+			$.ajax({
+				url: 'api/v1/users/' + e.target.dataset.userid,
+				data: {"_csrf_token": "{{ csrf_token() }}"},
+				type: 'DELETE',
+				success: function(response){
+					alert(response);
+					document.location.reload() 
+				},
+				error: function(error){
+					console.log(error);
+				}
+			});
+		});
+	});
+</script>
 
 {% endblock %}

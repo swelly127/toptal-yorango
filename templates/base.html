@@ -5,6 +5,7 @@
     <title>Flask test</title>
     <link rel=stylesheet type=text/css href="{{ url_for('static', filename='style.css') }}">
     <script src="https://code.jquery.com/jquery-3.3.1.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script> 
     <script src={{ google_api_script }}></script>
     <script src="../static/jquery.geocomplete.js"></script>
 </head>
@@ -16,15 +17,16 @@
 
 <div class="metanav">
     <a href="{{ url_for('index') }}">Home</a> |
-    {% if not session.logged_in %}
+    {% if not session.user %}
         <a href="{{ url_for('login') }}">Login</a> |
         <a href="{{ url_for('register') }}">Register</a>
     {% else %}
-        Logged in as {{ session.this_user.email }} | <a href="{{ url_for('logout') }}">Logout</a>
+        Logged in as {{ session.user.email }} | <a href="{{ url_for('logout') }}">Logout</a>
     {% endif %}
 </div>
 
 <div id="main_content">
+    <div> {{ baseMsg }} </div>
     {% block body %}{% endblock %}
 </div>
 
