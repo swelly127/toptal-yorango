@@ -30,7 +30,7 @@ class Listing(Document):
     realtor = ObjectIdField()
     coordinates = PointField()
     address = StringField(max_length=120)
-    is_available = BooleanField(default=True)
+    is_available = BooleanField()
     occupied_by = ObjectIdField()
     created_at = DateTimeField(default=datetime.now)
     def serialize(self):

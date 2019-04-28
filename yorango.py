@@ -31,115 +31,6 @@ geolocator = Nominatim(user_agent="yorango")
 
 VERY_LARGE_INT = 100000000
 
-class SingleUserResource(Resource):
-    def get(self, user_id):
-        user = User.objects(id=user_id).first()
-        if user:
-            return jsonify(user.serialize())
-        return "User not found", 200
-
-    def put(self, user_id):
-        email = request.form.get('email', default='')
-        password = request.form.get('password', default='')
-        role = request.form.get('role', default=None)
-        update_data = dict()
-        if role is not None:
-            update_data["set__role"] = int(role)
-        if email:
-            update_data["set__email"] = email
-        if password:
-            update_data["password"] = password
-        User.objects(id=user_id).modify(upsert=False, new=True, **update_data)
-        return "User updated", 200
-
-    def delete(self, user_id):
-        User.objects(id=user_id).delete()
-        return "User deleted", 200
-
-class SingleListingResource(Resource):
-    def get(self, listing_id):
-        listing = Listing.objects(id=listing_id).first()
-        if listing:
-            return jsonify(listing.serialize())
-        return "Listing not found", 200
-
-    def delete(self, listing_id):
-        listing = Listing.objects(id=listing_id).first()
-        return delete_listing(session, listing)
-
-    def put(self, listing_id):
-        listing = Listing.objects(id=listing_id).first()
-        request.listing = listing
-        return update_listing(session, request)
-
-class UserResource(Resource):
-    def get(self):
-        users = User.objects.all()
-        return jsonify([u.serialize() for u in users])
-
-    def post(self):
-        email = request.form.get('email')
-        password = request.form.get('password')
-        error_msg = None
-        if not email:
-            error_msg = 'Email is required.'
-        elif not password:
-            error_msg = 'Password is required.'
-        elif User.objects(email=email).first():
-            error_msg = 'User with email `{0}` is already registered.'.format(email)
-        if error_msg and client == 'web':
-            return error_msg, 400
-        elif error_msg:
-            flash(error_msg)
-            return redirect(url_for('register'))
-        new_user = User(email=email, password=bcrypt.generate_password_hash(password))
-        new_user.role = int(request.form.get('role')) or Role.TENANT
-        new_user.save()
-        client = request.form.get('client')
-        if client == "web":
-            return redirect(url_for('login'))
-        return "User created", 200
-
-    # todo login
-
-class ListingResource(Resource):
-    def get(self):
-        listings = Listing.objects.all()
-        return jsonify([l.serialize() for l in listings])
-
-    def post(self):
-        if session.get('user') is None:
-            return redirect(url_for('login'))
-        if not session['user'].get('role'):
-            return flash("You don't have permission to create a new listing")
-        title = request.form.get('name')
-        description = request.form.get('description', '')
-        sq_ft = request.form['sq_ft']
-        num_rooms = request.form['num_rooms']
-        monthly_rent = request.form['monthly_rent']
-        address = request.form['address']
-        location = geolocator.geocode(address)
-        is_available = request.form.get('is_available') == "true"
-        new_listing = Listing(
-            title=title,
-            description=description,
-            sq_ft=sq_ft,
-            num_rooms=num_rooms,
-            monthly_rent=monthly_rent,
-            address=address,
-            is_available=is_available,
-            realtor=User.objects(email=session['user']['email']).first().id,
-        )
-        if location:
-            new_listing.coordinates = [location.longitude, location.latitude]
-        new_listing.save()
-        return "ok", 200
-
-api.add_resource(SingleUserResource, '/users/<user_id>')
-api.add_resource(UserResource, '/users')
-api.add_resource(SingleListingResource, '/listings/<listing_id>')
-api.add_resource(ListingResource, '/listings')
-
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -168,7 +59,8 @@ def realtor_or_admin_required(f):
             flash('This action is only allowed for site admins. Please login to an admin or realtor account.')
             return redirect(url_for('login', next=request.url))
         elif session['user']['role'] < 1:
-            return flash('This action is only allowed for site admins and realtors.')
+            flash('This action is only allowed for site admins and realtors.')
+            return "Permission denied", 403
         else:
             return f(*args, **kwargs)
     return decorated_function
@@ -204,6 +96,113 @@ def find_user(f):
             request.user = user
         return f(*args, **kwargs)
     return decorated_function
+
+class SingleUserResource(Resource):
+    @login_required
+    @find_user
+    def get(self, user_id):
+        if session['user'].get('role') == Role.ADMIN or session['user']['id'] == request.user['id']:
+            return jsonify(request.user.serialize())
+        return "Permission denied", 403
+
+    @login_required
+    @find_user
+    def put(self, user_id):
+        return update_user()
+
+    @login_required
+    @find_user
+    def delete(self, user_id):
+        return delete_user()
+
+class SingleListingResource(Resource):
+    @login_required
+    @find_listing
+    def get(self, listing_id):
+        if session['user'].get('role') == Role.TENANT and not request.listing.is_available:
+            return "Permission denied", 403
+        return jsonify(request.listing.serialize())
+
+    @realtor_or_admin_required
+    @find_listing
+    def delete(self, listing_id):
+        return delete_listing()
+
+    @realtor_or_admin_required
+    @find_listing
+    def put(self, listing_id):
+        return update_listing()
+
+class UserResource(Resource):
+    @admin_required
+    def get(self):
+        users = User.objects.all()
+        return jsonify([u.serialize() for u in users])
+
+    def post(self):
+        email = request.form.get('email')
+        password = request.form.get('password')
+        client = request.form.get('client')
+        error_msg = None
+        if not email:
+            error_msg = 'Email is required.'
+        elif not password:
+            error_msg = 'Password is required.'
+        elif User.objects(email=email).first():
+            error_msg = 'User with email `{0}` is already registered.'.format(email)
+        elif error_msg:
+            if client == "web":
+                flash(error_msg)
+                return redirect(url_for('register'))
+            return error_msg, 400
+        new_user = User(email=email, password=bcrypt.generate_password_hash(password))
+        new_user.role = int(request.form.get('role')) or Role.TENANT
+        new_user.save()
+        if client == "web":
+            return redirect(url_for('login'))
+        return "User created", 200
+
+    # todo login
+
+class ListingResource(Resource):
+    @login_required
+    def get(self):
+        listings = Listing.objects.all()
+        return jsonify([l.serialize() for l in listings if l.is_available or session['user']['role'] > 0])
+
+    @realtor_or_admin_required
+    def post(self):
+        if session.get('user') is None:
+            return redirect(url_for('login'))
+        title = request.form.get('name')
+        description = request.form.get('description', '')
+        sq_ft = request.form['sq_ft']
+        num_rooms = request.form['num_rooms']
+        monthly_rent = request.form['monthly_rent']
+        address = request.form['address']
+        location = geolocator.geocode(address)
+        is_available = request.form.get('is_available') == "true"
+        new_listing = Listing(
+            title=title,
+            description=description,
+            sq_ft=sq_ft,
+            num_rooms=num_rooms,
+            monthly_rent=monthly_rent,
+            address=address,
+            is_available=is_available,
+            realtor=User.objects(email=session['user']['email']).first().id,
+        )
+        if location:
+            new_listing.coordinates = [location.longitude, location.latitude]
+        new_listing.save()
+        if request.form.get("client", None) == "web":
+            return redirect('/listings/' + str(new_listing.id))
+        return new_listing.serialize(), 200
+
+api.add_resource(SingleUserResource, '/users/<user_id>')
+api.add_resource(UserResource, '/users')
+api.add_resource(SingleListingResource, '/listings/<listing_id>')
+api.add_resource(ListingResource, '/listings')
 
 @app.route('/')
 @login_required
@@ -256,8 +255,8 @@ def listing_form():
 @realtor_or_admin_required
 @find_listing
 def get_listing_form(listing_id):
-    if session['user']['role'] == Role.REALTOR and request.listing['realtor'] != session['user'].id:
-        return render_template('base.html', baseMsg="Permission denied. Can only edit listings you own."), 500
+    if session['user']['role'] == Role.REALTOR and str(request.listing['realtor']) != session['user']['id']:
+        return render_template('base.html', baseMsg="Permission denied. Can only edit listings you own."), 403
     google_api_script = "https://maps.googleapis.com/maps/api/js?key=" + GOOGLE_API_KEY + "&libraries=places"
     return render_template('listing_edit.html', listing=request.listing, google_api_script=google_api_script)
 
@@ -266,10 +265,15 @@ def get_listing_form(listing_id):
 @find_listing
 def post_listing(listing_id):
     if request.form.get("_method") == "PUT":
-        return update_listing(session, request)
+        msg, code = update_listing()
+        flash(msg)
+        return redirect('/listings/' + str(listing_id))
     if request.form.get("_method") == "DELETE":
-        return delete_listing(session, request.listing)
-    return redirect(url_for('listings'))
+        msg, code = delete_listing()
+        flash(msg)
+        return redirect(url_for('listings'))
+    flash("Invalid method type")
+    return redirect('/listings/edit/' + str(listing_id))
 
 @app.route('/listings/<listing_id>', methods=['GET'])
 @login_required
@@ -292,23 +296,27 @@ def users():
     users = User.objects.all()
     return render_template('users.html', users=users)
 
-@app.route('/users/<user_id>', methods=['DELETE'])
+@app.route('/users/edit/<user_id>')
 @login_required
 @find_user
-def delete_user(user_id):
-    if session['user'].id == user_id or session['user']['role'] == ROLE.ADMIN:
-        request.user.delete()
-        flash('User account has been deleted.')
-        return redirect(url_for('users'))
-    flash('You do not have permission to delete this account.')
-    return redirect(url_for('users'))
+def get_user_form(user_id):
+    if session['user']['id'] == str(request.user['id']) or session['user']['role'] == Role.ADMIN:
+        google_api_script = "https://maps.googleapis.com/maps/api/js?key=" + GOOGLE_API_KEY + "&libraries=places"
+        return render_template('user_edit.html', user=request.user, google_api_script=google_api_script)
+    return render_template('base.html', baseMsg="Permission denied. Can only edit yourself unless admin."), 403
 
 @app.route('/users/<user_id>', methods=['POST'])
+@login_required
 @find_user
 def post_user(user_id):
     if request.form.get("_method") == "DELETE":
-        return delete_user(user_id)
-    return redirect(url_for('users'))
+        msg, code = delete_user()
+        flash(msg)
+        return redirect(url_for('users'))
+    if request.form.get("_method") == "PUT":
+        msg, code = update_user()
+        flash(msg)
+        return redirect('/api/v1/users/' + user_id)
 
 @app.route('/register')
 def register():
@@ -321,12 +329,12 @@ def login():
         email = request.form.get('email')
         password = request.form.get('password')
         if not email:
-            return flash('Email is required.')
+            error = 'Email is required.'
         elif not password:
-            return flash('Password is required.')
+            error = 'Password is required.'
         user = User.objects.get(email=email)
         if not user:
-            return flash('User does not exist.')
+            error = 'User does not exist.'
         if email != user.email:
             error = 'Invalid email'
         elif bcrypt.check_password_hash(user.password, password) == False:

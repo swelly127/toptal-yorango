@@ -6,6 +6,7 @@
 {% if error %}<p class=error><strong>Error:</strong> {{ error }}{% endif %}
 <form class="register_form" action="/api/v1/listings" method="post">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="client" value="web">
     <dl>
         <dt>Name: <input required type="text" name="name">
         <dt>Description: <textarea type="text" name="description"></textarea>

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block body %}
+
+<h2>Edit User</h2>
+{% if error %}<p class=error><strong>Error:</strong> {{ error }}{% endif %}
+<form class="register_form" action="/users/{{user.id}}" method="post">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="_method" value="PUT">
+    <dl>
+        <dt>Email: <input type="text" name="email" value="{{user.email}}">
+        <dt>
+        <select name="role">
+            {% if user.role == 0 %}
+                <option selected value=0>Tenant</option>
+                <option value=1>Realtor</option>
+                <option value=2>Admin</option>
+            {% elif user.role == 1 %}
+                <option value=0>Tenant</option>
+                <option selected value=1>Realtor</option>
+                <option value=2>Admin</option>
+            {% elif user.role == 2 %}
+                <option value=0>Tenant</option>
+                <option value=1>Realtor</option>
+                <option selected value=2>Admin</option>
+            {% endif %}
+        </select>
+        <dt><input class="signup_button" type="submit" value="Update User">
+    </dl>
+</form>
+
+{% endblock %}

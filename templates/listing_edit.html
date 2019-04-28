@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block body %}
+
+<h2>Edit listing</h2>
+{% if error %}<p class=error><strong>Error:</strong> {{ error }}{% endif %}
+<form class="register_form" action="/listings/{{listing.id}}" method="post">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="_method" value="PUT">
+    <dl>
+        <dt>Name: <input required type="text" name="title" value={{listing.title}}>
+        <dt>Description: <textarea type="text" name="description">{{listing.description}}</textarea>
+        <dt>Number of Rooms: <input required type="number" name="num_rooms" value={{listing.num_rooms}} min="0" max="10000">
+        <dt>Square Footage: <input required type="number" name="sq_ft" value={{listing.sq_ft}}>
+		<dt>Rent: $<input required type="number" name="monthly_rent" value={{listing.monthly_rent}} min="0" max="10000000">
+		<div>
+			<input type="checkbox" name="is_available" checked="{{listing.is_available}}" value="true">
+			<label for="is_available">Available now</label>
+		</div>
+		<dt>Address: <input required id="address_field" value="{{listing.address}}" type="text" name="address">
+		<br/>
+        <input type="submit" value="Edit Listing">
+    </dl>
+</form>
+
+<script>
+    $("#address_field").geocomplete();
+</script>
+
+{% endblock %} 

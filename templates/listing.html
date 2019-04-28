@@ -29,10 +29,15 @@
 	<div class="red">The realtor for this listing is no longer active on our site.</div>
 {% endif %}
 
-<form class="register_form" action="{{listing.id|string}}" method="post">
-    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-    <input type="hidden" name="_method" value="DELETE" />
-    <input type="submit" value="Delete Listing">
-</form>
+{% if session.user.role == 2 or session.user.email == realtor.email %}
+	<form action="/listings/edit/{{listing.id|string}}" class="inline">
+	    <button type="submit">Edit Listing</button>
+	</form>
+	<form action="/listings/{{listing.id|string}}" class="inline">
+		<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+		<input type="hidden" name="_method" value="DELETE">
+		<button type="submit">Delete Listing</button>
+	</form>
+{% endif %}
 
 {% endblock %}
