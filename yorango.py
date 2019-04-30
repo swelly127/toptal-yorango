@@ -78,7 +78,9 @@ class UserResource(Resource):
             if error_msg:
                 flash(error_msg)
                 return redirect(url_for('register'))
-            return redirect(url_for('login'))
+            flash('You are successfully registered. Welcome!')
+            session['user'] = new_user.serialize()
+            return redirect(url_for('index'))
         if error_msg:
             return error_msg, 400
         token = User.encode_auth_token(new_user.id)
