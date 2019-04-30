@@ -40,8 +40,9 @@ def get_current_user():
         auth_token = auth_header.split(" ")[1]
         user_id = User.decode_auth_token(auth_token)
         if not bson.objectid.ObjectId.is_valid(user_id):
-            return None
-        return User.query.filter_by(id=user_id).first()
+            return user_id
+        current_user = User.query.filter_by(id=user_id).first()
+        session['user'] = current_user.serialize()
     return current_user
 
 def login_required(f):
@@ -193,8 +194,6 @@ class ListingResource(Resource):
 
     @realtor_or_admin_required
     def post(self):
-        if session.get('user') is None:
-            return redirect(url_for('login'))
         title = request.form.get('name')
         description = request.form.get('description', '')
         sq_ft = request.form['sq_ft']
@@ -234,7 +233,7 @@ def get_token():
         error = 'Email is required.'
     elif not password:
         error = 'Password is required.'
-    user = User.objects.get(email=email)
+    user = User.objects(email=email).first()
     if not user:
         error = 'User does not exist.'
     elif email != user.email:

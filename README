@@ -18,7 +18,7 @@ To run this app locally
 This app is deployed at https://git.heroku.com/yorango.git with heroku.
 To see heroku logs run `heroku logs -n 200`
 
-$ todo: make sure REST and nonREST endpoints aren't overlapping
+$ todo: make sure the helper functions handle client=web and API endpoints differently
 $ todo: test REST api
 
 BONUS
