@@ -172,13 +172,13 @@ class UserResource(Resource):
             error_msg = 'Password is required.'
         elif User.objects(email=email).first():
             error_msg = 'User with email `{0}` is already registered.'.format(email)
-        elif error_msg:
+        if error_msg:
             if client == "web":
                 flash(error_msg)
                 return redirect(url_for('register'))
             return error_msg, 400
         new_user = User(email=email, password=bcrypt.generate_password_hash(password))
-        new_user.role = int(request.form.get('role')) or Role.TENANT
+        new_user.role = int(request.form.get('role', Role.TENANT))
         new_user.save()
         if client == "web":
             return redirect(url_for('login'))
