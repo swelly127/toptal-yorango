@@ -16,19 +16,21 @@ def delete_listing():
         return "Listing deleted", 200
     return "You do not have permission to delete this listing", 403
 
-def update_user():
+def update_user(bcrypt):
     if session['user'].get('role') != Role.ADMIN and session['user']['id'] != request.user['id']:
         return "Permission denied", 403
     email = request.form.get('email', default='')
     password = request.form.get('password', default='')
     role = request.form.get('role', default=None)
+    password = request.form.get('password', default=None)
+    confirmPassword = request.form.get('confirmPassword', default=None)
     update_data = dict()
     if role is not None:
         update_data["set__role"] = int(role)
     if email:
         update_data["set__email"] = email
-    if password:
-        update_data["password"] = password
+    if password and confirmPassword and password == confirmPassword:
+        update_data["set__password"] = bcrypt.generate_password_hash(password)
     request.user.modify(**update_data)
     return "User updated", 200
 

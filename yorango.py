@@ -31,10 +31,26 @@ geolocator = Nominatim(user_agent="yorango")
 
 VERY_LARGE_INT = 100000000
 
+def get_current_user():
+    current_user = session.get('user', None)
+    if current_user is None:
+        auth_header = request.headers.get('Authorization')
+        if not auth_header:
+            return None
+        auth_token = auth_header.split(" ")[1]
+        user_id = User.decode_auth_token(auth_token)
+        if not bson.objectid.ObjectId.is_valid(user_id):
+            return None
+        return User.query.filter_by(id=user_id).first()
+    return current_user
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if session.get('user') is None:
+        current_user = get_current_user()
+        if type(current_user) is str:
+            return current_user, 401
+        if current_user is None:
             return redirect(url_for('login', next=request.url))
         return f(*args, **kwargs)
     return decorated_function
@@ -42,10 +58,13 @@ def login_required(f):
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if session.get('user') is None:
+        current_user = get_current_user()
+        if type(current_user) is str:
+            return current_user, 401
+        if current_user is None:
             flash('This action is only allowed for site admins. Please login to an admin account.')
             return redirect(url_for('login', next=request.url))
-        elif session['user']['role'] < 2:
+        elif current_user['role'] < 2:
             flash('This action is only allowed for site admins.')
             return redirect(url_for('index'))
         else:
@@ -55,10 +74,13 @@ def admin_required(f):
 def realtor_or_admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if session.get('user') is None:
+        current_user = get_current_user()
+        if type(current_user) is str:
+            return current_user, 401
+        if current_user is None:
             flash('This action is only allowed for site admins. Please login to an admin or realtor account.')
             return redirect(url_for('login', next=request.url))
-        elif session['user']['role'] < 1:
+        elif current_user['role'] < 1:
             flash('This action is only allowed for site admins and realtors.')
             return "Permission denied", 403
         else:
@@ -108,7 +130,7 @@ class SingleUserResource(Resource):
     @login_required
     @find_user
     def put(self, user_id):
-        return update_user()
+        return update_user(bcrypt=bcrypt)
 
     @login_required
     @find_user
@@ -160,9 +182,8 @@ class UserResource(Resource):
         new_user.save()
         if client == "web":
             return redirect(url_for('login'))
-        return "User created", 200
-
-    # todo login
+        token = User.encode_auth_token(new_user.id)
+        return "User created with auth token %s" % token, 200
 
 class ListingResource(Resource):
     @login_required
@@ -203,6 +224,34 @@ api.add_resource(SingleUserResource, '/users/<user_id>')
 api.add_resource(UserResource, '/users')
 api.add_resource(SingleListingResource, '/listings/<listing_id>')
 api.add_resource(ListingResource, '/listings')
+
+@app.route('/api/v1/token')
+def get_token():
+    error = None
+    email = request.args.get('email')
+    password = request.args.get('password')
+    if not email:
+        error = 'Email is required.'
+    elif not password:
+        error = 'Password is required.'
+    user = User.objects.get(email=email)
+    if not user:
+        error = 'User does not exist.'
+    elif email != user.email:
+        error = 'Invalid email'
+    elif bcrypt.check_password_hash(user.password, password) == False:
+        error = 'Invalid password'
+    if not error:
+        token = User.encode_auth_token(user.id)
+        session['user'] = user.serialize()
+        return jsonify({
+            'message': 'success',
+            "token": token,
+        }), 200
+    return jsonify({
+        'message': error,
+        "token": None,
+    }), 400
 
 @app.route('/')
 @login_required
@@ -314,7 +363,7 @@ def post_user(user_id):
         flash(msg)
         return redirect(url_for('users'))
     if request.form.get("_method") == "PUT":
-        msg, code = update_user()
+        msg, code = update_user(bcrypt=bcrypt)
         flash(msg)
         return redirect('/api/v1/users/' + user_id)
 

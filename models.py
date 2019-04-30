@@ -1,18 +1,23 @@
+import os
+import jwt
+
 from mongoengine import *
 from enum import IntEnum
-from datetime import datetime
+import datetime
 
+SECRET_KEY = os.environ.get('SECRET_KEY', '')
 class Role(IntEnum):
     TENANT = 0
     REALTOR = 1
     ADMIN = 2
 
 class User(Document):
-    created_at = DateTimeField(default=datetime.now)
+    created_at = DateTimeField(default=datetime.datetime.now)
     email = EmailField(required=True)
     password = StringField(max_length=200)
     role = IntField(default=0)
     meta = {'strict': False}
+
     def serialize(self):
         return {
             'id': str(self.id),
@@ -20,6 +25,29 @@ class User(Document):
             'email': self.email,
             'role': self.role,
         }
+
+    @staticmethod
+    def encode_auth_token(user_id):
+        payload = {
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(days=0, seconds=3600),
+            'iat': datetime.datetime.utcnow(),
+            'sub': str(user_id)
+        }
+        return jwt.encode(
+            payload,
+            SECRET_KEY,
+            algorithm = 'HS256'
+        )
+
+    @staticmethod
+    def decode_auth_token(auth_token):
+        try:
+            payload = jwt.decode(auth_token, SECRET_KEY)
+            return payload['sub']
+        except jwt.ExpiredSignatureError:
+            return 'Signature expired. Please log in again.'
+        except jwt.InvalidTokenError:
+            return 'Invalid token. Please log in again.'
 
 class Listing(Document):
     title = StringField(max_length=120)
@@ -32,7 +60,7 @@ class Listing(Document):
     address = StringField(max_length=120)
     is_available = BooleanField()
     occupied_by = ObjectIdField()
-    created_at = DateTimeField(default=datetime.now)
+    created_at = DateTimeField(default=datetime.datetime.now)
     def serialize(self):
         return {
             'id': str(self.id),
