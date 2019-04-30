@@ -13,10 +13,15 @@
         <dt>Number of Rooms: <input required type="number" name="num_rooms" value={{listing.num_rooms}} min="0" max="10000">
         <dt>Square Footage: <input required type="number" name="sq_ft" value={{listing.sq_ft}}>
 		<dt>Rent: $<input required type="number" name="monthly_rent" value={{listing.monthly_rent}} min="0" max="10000000">
-		<div>
-			<input type="checkbox" name="is_available" checked="{{listing.is_available}}" value="true">
-			<label for="is_available">Available now</label>
-		</div>
+        <select name="is_available">
+            {% if listing.is_available %}
+                <option selected value="true">Available</option>
+                <option value="false">Occupied</option>
+            {% else %}
+                <option value="true">Available</option>
+                <option selected value="false">Occupied</option>
+            {% endif %}
+        </select>
 		<dt>Address: <input required id="address_field" value="{{listing.address}}" type="text" name="address">
 		<br/>
         <input type="submit" value="Edit Listing">
