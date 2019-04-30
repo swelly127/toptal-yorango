@@ -72,26 +72,15 @@ class UserResource(Resource):
         return jsonify([u.serialize() for u in users])
 
     def post(self):
-        email = request.form.get('email')
-        password = request.form.get('password')
         client = request.form.get('client')
-        error_msg = None
-        if not email:
-            error_msg = 'Email is required.'
-        elif not password:
-            error_msg = 'Password is required.'
-        elif User.objects(email=email).first():
-            error_msg = 'User with email `{0}` is already registered.'.format(email)
-        if error_msg:
-            if client == "web":
+        new_user, error_msg = create_user(bcrypt)
+        if client == "web":
+            if error_msg:
                 flash(error_msg)
                 return redirect(url_for('register'))
-            return error_msg, 400
-        new_user = User(email=email, password=bcrypt.generate_password_hash(password))
-        new_user.role = int(request.form.get('role', Role.TENANT))
-        new_user.save()
-        if client == "web":
             return redirect(url_for('login'))
+        if error_msg:
+            return error_msg, 400
         token = User.encode_auth_token(new_user.id)
         return "User created with auth token %s" % token, 200
 
@@ -103,27 +92,7 @@ class ListingResource(Resource):
 
     @realtor_or_admin_required
     def post(self):
-        title = request.form.get('name')
-        description = request.form.get('description', '')
-        sq_ft = request.form['sq_ft']
-        num_rooms = request.form['num_rooms']
-        monthly_rent = request.form['monthly_rent']
-        address = request.form['address']
-        location = geolocator.geocode(address)
-        is_available = request.form.get('is_available') == "true"
-        new_listing = Listing(
-            title=title,
-            description=description,
-            sq_ft=sq_ft,
-            num_rooms=num_rooms,
-            monthly_rent=monthly_rent,
-            address=address,
-            is_available=is_available,
-            realtor=User.objects(email=session['user']['email']).first().id,
-        )
-        if location:
-            new_listing.coordinates = [location.longitude, location.latitude]
-        new_listing.save()
+        new_listing = create_listing()
         if request.form.get("client", None) == "web":
             return redirect('/listings/' + str(new_listing.id))
         return new_listing.serialize(), 200
