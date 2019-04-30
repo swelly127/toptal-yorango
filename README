@@ -19,9 +19,11 @@ This app is deployed at https://git.heroku.com/yorango.git with heroku.
 To see heroku logs run `heroku logs -n 200`
 
 $ todo: make sure the helper functions handle client=web and API endpoints differently
+$ todo: refactor stuff (make yorango.py shorter)
 $ todo: test REST api
 
 BONUS
+$ todo: separate user and listing helpers into a helpers folder
 $ todo: add location search functionality
 $ todo: make pretty
 $ todo: unit or integration tests

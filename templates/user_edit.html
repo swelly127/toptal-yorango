@@ -9,8 +9,8 @@
     <input type="hidden" name="_method" value="PUT">
     <dl>
         <dt>Email: <input type="text" name="email" value="{{user.email}}">
-        <dt>New Password: <input type="password" name="password" value="">
-        <dt>Confirm New Password: <input type="password" name="confirmPassword">
+        <dt>New Password (optional): <input type="password" name="password" value="">
+        <dt>Confirm New Password (optional): <input type="password" name="confirmPassword">
         <dt>
         <select name="role">
             {% if user.role == 0 %}

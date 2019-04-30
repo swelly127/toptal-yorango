@@ -1,20 +1,32 @@
+import bson
+
+from flask import request, session
 from geopy.geocoders import Nominatim
 from models import *
-from flask import request, session
 
 geolocator = Nominatim(user_agent="yorango")
+
+VERY_LARGE_INT = 100000000
+
+def get_current_user():
+    current_user = session.get('user', None)
+    if current_user is None:
+        auth_header = request.headers.get('Authorization')
+        if not auth_header:
+            return None
+        auth_token = auth_header.split(" ")[1]
+        user_id = User.decode_auth_token(auth_token)
+        if not bson.objectid.ObjectId.is_valid(user_id):
+            return user_id
+        current_user = User.query.filter_by(id=user_id).first()
+        session['user'] = current_user.serialize()
+    return current_user
 
 def delete_user():
     if session['user'].get('role') != Role.ADMIN and session['user']['id'] != request.user['id']:
         return "Permission denied", 403
     request.user.delete()
     return "User deleted", 200
-
-def delete_listing():
-    if session['user']['id'] == str(request.listing.realtor) or session['user']['role'] == Role.ADMIN:
-        request.listing.delete()
-        return "Listing deleted", 200
-    return "You do not have permission to delete this listing", 403
 
 def update_user(bcrypt):
     if session['user'].get('role') != Role.ADMIN and session['user']['id'] != request.user['id']:
@@ -33,6 +45,44 @@ def update_user(bcrypt):
         update_data["set__password"] = bcrypt.generate_password_hash(password)
     request.user.modify(**update_data)
     return "User updated", 200
+
+def delete_listing():
+    if session['user']['id'] == str(request.listing.realtor) or session['user']['role'] == Role.ADMIN:
+        request.listing.delete()
+        return "Listing deleted", 200
+    return "You do not have permission to delete this listing", 403
+
+def get_listings_info():
+    price_low = request.args.get('price_low', default=0, type=int)
+    price_high = request.args.get('price_high', default=VERY_LARGE_INT, type=int) # Equal to $100M rent
+    size_max = request.args.get('size_max', default=VERY_LARGE_INT, type=int) # Equal to 2300 acres
+    size_min = request.args.get('size_min', default=0, type=int)
+    num_rooms_max = request.args.get('num_rooms_max', default=VERY_LARGE_INT, type=int)
+    num_rooms_min = request.args.get('num_rooms_min', default=0, type=int)
+    listings = Listing.objects(
+        monthly_rent__lte=price_high,
+        monthly_rent__gte=price_low,
+        sq_ft__lte=size_max,
+        sq_ft__gte=size_min,
+        num_rooms__lte=num_rooms_max,
+        num_rooms__gte=num_rooms_min,
+    )
+    markers = []
+    sum_latitude, sum_longitude = 0, 0
+    for listing in listings:
+        if listing.coordinates:
+            latitude = listing.coordinates['coordinates'][1]
+            longitude = listing.coordinates['coordinates'][0]
+            sum_longitude += longitude
+            sum_latitude += latitude
+            markers.append({
+                'lat': latitude, 'lng':longitude,
+                'infobox': "<div><a href='listings/%s'>%s for $%s</a></div>" % (str(listing.id), listing.title, listing.monthly_rent)})
+    starting_latitude, starting_longitude = 0, 0
+    if len(markers) > 0:
+        starting_latitude = sum_latitude/len(markers)
+        starting_longitude = sum_longitude/len(markers)
+    return listings, starting_latitude, starting_longitude, markers
 
 def update_listing():
     if session['user'].get('role') != Role.ADMIN and str(request.listing.realtor) != session['user']['id']:

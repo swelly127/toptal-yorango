@@ -16,7 +16,7 @@
 		<form action="/users/edit/{{user.id|string}}" class="inline">
 			<button type="submit">Edit User</button>
 		</form>
-		<form action="/users/{{user.id|string}}" class="inline">
+		<form action="/users/{{user.id|string}}" class="inline" method="post">
 			<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
 			<input type="hidden" name="_method" value="DELETE">
 			<button type="submit">Delete User</button>

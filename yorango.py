@@ -7,11 +7,11 @@ from flask_bcrypt import Bcrypt
 from flask_restful import Resource, Api
 from flask_wtf.csrf import CSRFProtect
 from flask_googlemaps import GoogleMaps, Map
-from functools import wraps
 from geopy.geocoders import Nominatim
-from models import *
+
 from helpers import *
-from resources import *
+from middleware import *
+from models import *
 
 mongo_host = os.getenv('MONGOLAB_URI', 'mongodb://localhost:27017')
 connect(alias='default', host=mongo_host)
@@ -28,97 +28,6 @@ GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY', "")
 GoogleMaps(app, key=GOOGLE_API_KEY)
 
 geolocator = Nominatim(user_agent="yorango")
-
-VERY_LARGE_INT = 100000000
-
-def get_current_user():
-    current_user = session.get('user', None)
-    if current_user is None:
-        auth_header = request.headers.get('Authorization')
-        if not auth_header:
-            return None
-        auth_token = auth_header.split(" ")[1]
-        user_id = User.decode_auth_token(auth_token)
-        if not bson.objectid.ObjectId.is_valid(user_id):
-            return user_id
-        current_user = User.query.filter_by(id=user_id).first()
-        session['user'] = current_user.serialize()
-    return current_user
-
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        current_user = get_current_user()
-        if type(current_user) is str:
-            return current_user, 401
-        if current_user is None:
-            return redirect(url_for('login', next=request.url))
-        return f(*args, **kwargs)
-    return decorated_function
-
-def admin_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        current_user = get_current_user()
-        if type(current_user) is str:
-            return current_user, 401
-        if current_user is None:
-            flash('This action is only allowed for site admins. Please login to an admin account.')
-            return redirect(url_for('login', next=request.url))
-        elif current_user['role'] < 2:
-            flash('This action is only allowed for site admins.')
-            return redirect(url_for('index'))
-        else:
-            return f(*args, **kwargs)
-    return decorated_function
-
-def realtor_or_admin_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        current_user = get_current_user()
-        if type(current_user) is str:
-            return current_user, 401
-        if current_user is None:
-            flash('This action is only allowed for site admins. Please login to an admin or realtor account.')
-            return redirect(url_for('login', next=request.url))
-        elif current_user['role'] < 1:
-            flash('This action is only allowed for site admins and realtors.')
-            return "Permission denied", 403
-        else:
-            return f(*args, **kwargs)
-    return decorated_function
-
-def find_listing(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        listing_id = kwargs.get('listing_id', None)
-        if listing_id:
-            if not bson.objectid.ObjectId.is_valid(listing_id):
-                flash('This is not a valid listing id.')
-                return render_template('base.html', baseMsg="Invalid listing id."), 404
-            listing = Listing.objects(id=listing_id).first()
-            if not listing:
-                flash('Listing not found.')
-                return render_template('base.html', baseMsg="Listing not found."), 404
-            request.listing = listing
-        return f(*args, **kwargs)
-    return decorated_function
-
-def find_user(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        user_id = kwargs.get('user_id', None)
-        if user_id:
-            if not bson.objectid.ObjectId.is_valid(user_id):
-                flash('This is not a valid user id.')
-                return render_template('base.html', baseMsg="Invalid user id."), 404
-            user = User.objects(id=user_id).first()
-            if not user:
-                flash('User not found.')
-                return render_template('base.html', baseMsg="User not found."), 404
-            request.user = user
-        return f(*args, **kwargs)
-    return decorated_function
 
 class SingleUserResource(Resource):
     @login_required
@@ -261,37 +170,8 @@ def index():
 @app.route('/listings')
 @login_required
 def listings():
-    price_low = request.args.get('price_low', default=0, type=int)
-    price_high = request.args.get('price_high', default=VERY_LARGE_INT, type=int) # Equal to $100M rent
-    size_max = request.args.get('size_max', default=VERY_LARGE_INT, type=int) # Equal to 2300 acres
-    size_min = request.args.get('size_min', default=0, type=int)
-    num_rooms_max = request.args.get('num_rooms_max', default=VERY_LARGE_INT, type=int)
-    num_rooms_min = request.args.get('num_rooms_min', default=0, type=int)
-    listings = Listing.objects(
-        monthly_rent__lte=price_high,
-        monthly_rent__gte=price_low,
-        sq_ft__lte=size_max,
-        sq_ft__gte=size_min,
-        num_rooms__lte=num_rooms_max,
-        num_rooms__gte=num_rooms_min,
-    )
-    markers = []
-    sum_latitude, sum_longitude = 0, 0
-    for listing in listings:
-        if listing.coordinates:
-            latitude = listing.coordinates['coordinates'][1]
-            longitude = listing.coordinates['coordinates'][0]
-            sum_longitude += longitude
-            sum_latitude += latitude
-            markers.append({
-                'lat': latitude, 'lng':longitude,
-                'infobox': "<div><a href='listings/%s'>%s for $%s</a></div>" % (str(listing.id), listing.title, listing.monthly_rent)})
-    starting_latitude, starting_longitude = 0, 0
-    if len(markers) > 0:
-        starting_latitude = sum_latitude/len(markers)
-        starting_longitude = sum_longitude/len(markers)
-    return render_template('listings.html',
-        listings=listings, latitude=starting_latitude, longitude=starting_longitude, markers=markers)
+    listings, latitude, longitude, markers = get_listings_info()
+    return render_template('listings.html', listings=listings, latitude=latitude, longitude=longitude, markers=markers)
 
 @app.route('/listings/new')
 @realtor_or_admin_required
@@ -364,7 +244,7 @@ def post_user(user_id):
     if request.form.get("_method") == "PUT":
         msg, code = update_user(bcrypt=bcrypt)
         flash(msg)
-        return redirect('/api/v1/users/' + user_id)
+        return redirect(url_for('users'))
 
 @app.route('/register')
 def register():

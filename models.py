@@ -13,7 +13,7 @@ class Role(IntEnum):
 
 class User(Document):
     created_at = DateTimeField(default=datetime.datetime.now)
-    email = EmailField(required=True)
+    email = EmailField(required=True, unique=True)
     password = StringField(max_length=200)
     role = IntField(default=0)
     meta = {'strict': False}

@@ -33,7 +33,7 @@
 	<form action="/listings/edit/{{listing.id|string}}" class="inline">
 	    <button type="submit">Edit Listing</button>
 	</form>
-	<form action="/listings/{{listing.id|string}}" class="inline">
+	<form action="/listings/{{listing.id|string}}" class="inline" method="post">
 		<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
 		<input type="hidden" name="_method" value="DELETE">
 		<button type="submit">Delete Listing</button>
