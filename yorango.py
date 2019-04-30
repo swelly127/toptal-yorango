@@ -22,7 +22,7 @@ bcrypt = Bcrypt(app)
 csrf = CSRFProtect(app)
 csrf.init_app(app)
 
-api = Api(app, prefix="/api/v1")
+api = Api(app, prefix="/api/v1", decorators=[csrf.exempt])
 
 GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY', "")
 GoogleMaps(app, key=GOOGLE_API_KEY)
