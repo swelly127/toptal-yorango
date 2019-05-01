@@ -2,6 +2,7 @@ import bson
 
 from flask import request, session
 from geopy.geocoders import Nominatim
+
 from models import *
 
 geolocator = Nominatim(user_agent="yorango")

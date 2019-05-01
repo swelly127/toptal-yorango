@@ -35,11 +35,14 @@ pyjwt==1.7.1
 pymongo==3.7.2
 python-dateutil==2.8.0
 pytz==2013.7
+pyyaml==5.1
 six==1.12.0
 ratelim==0.1.6
 requests==2.21.0
 typing==3.6.6
+ua-parser==0.8.0
 urllib3==1.24.2
+user-agents==2.0
 virtualenv==16.4.3
 virtualenv-clone==0.5.3
 Werkzeug==0.15.2
